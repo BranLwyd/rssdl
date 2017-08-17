@@ -15,14 +15,14 @@ go_binary(
 ## Libraries
 ##
 go_library(
-    name = "week",
-    srcs = ["week.go"],
+    name = "weekly",
+    srcs = ["weekly.go"],
 )
 
 go_test(
-    name = "week_test",
-    srcs = ["week_test.go"],
-    library = "week",
+    name = "weekly_test",
+    srcs = ["weekly_test.go"],
+    library = "weekly",
 )
 
 ##

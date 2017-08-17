@@ -4,33 +4,25 @@ syntax = "proto3";
 // Proto buffer definitions for rssdl.
 //
 
-// Interval stores a weekly interval that starts & ends at a given time each week.
-message Interval {
-  // Required. When the interval starts, as a string in the format "Thu 7:30PM".
-  string start = 1;
-  // Required. When the interval ends, as a string in the format "Thu 7:30PM".
-  string end = 2;
-}
-
-
-// FrequencyInterval specifies a frequency that applies over a given interval of time.
-message FrequencyInterval {
-  // Required. The frequency, in seconds per event.
-  uint32 freq = 1;
-  // Optional. The interval during which this frequency applies. If unspecified, this frequency applies at all times.
-  Interval interval = 2;
-}
-
 // Feed specifies all parameters of an RSS feed that is being watched.
 message Feed {
   // Required. The name of the feed.
   string name = 1;
   // Required. The URL of the feed.
   string url = 2;
-  // At least one required. The frequency at which to check the RSS feed.
-  repeated FrequencyInterval check_freq = 3;
-  // Required. A regex applied to the title, which should have as its first capture group a string used to lexicographically order feed results. Anything that is not newer than the newest result is discarded.
-  string order_regex = 4;
+
+  // Required. When to start checking the feed each week, as a string in the format "Thu 7:30PM".
+  string check_start = 3;
+  // Required. When to stop checking the feed each week, as a string in the format "Thu 7:30PM".
+  string check_end = 4;
+  // Required. How frequently to check the feed, in seconds per check.
+  uint32 check_freq_s = 5;
+  
+  // Required. A regex applied to the title, which should have as its first
+  // capture group a string used to lexicographically order feed results.
+  // Anything that does not fit this regex, or is not newer than the current
+  // greatest value, is discarded.
+  string order_regex = 6;
 }
 
 // Config specifies the configuration for rssdld.
