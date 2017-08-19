@@ -6,6 +6,92 @@ import (
 	"time"
 )
 
+func TestNextTick(t *testing.T) {
+	t.Parallel()
+
+	// 2017-08-20 is a Sunday.
+	for _, test := range []struct {
+		desc       string
+		t          time.Time
+		start, end Time
+		freq       time.Duration
+		want       time.Time
+	}{
+		{
+			desc:  "before_interval",
+			t:     time.Date(2017, 8, 21, 15, 23, 11, 423691, time.UTC),
+			start: parse("Wed 5:30PM"),
+			end:   parse("Thu 5:30AM"),
+			freq:  time.Minute,
+			want:  time.Date(2017, 8, 23, 17, 30, 0, 0, time.UTC),
+		},
+		{
+			desc:  "at_first_tick",
+			t:     time.Date(2017, 8, 23, 17, 30, 0, 0, time.UTC),
+			start: parse("Wed 5:30PM"),
+			end:   parse("Thu 5:30AM"),
+			freq:  time.Minute,
+			want:  time.Date(2017, 8, 23, 17, 31, 0, 0, time.UTC),
+		},
+		{
+			desc:  "after_first_tick",
+			t:     time.Date(2017, 8, 23, 17, 30, 22, 0, time.UTC),
+			start: parse("Wed 5:30PM"),
+			end:   parse("Thu 5:30AM"),
+			freq:  time.Minute,
+			want:  time.Date(2017, 8, 23, 17, 31, 0, 0, time.UTC),
+		},
+		{
+			desc:  "at_inner_tick",
+			t:     time.Date(2017, 8, 24, 4, 22, 0, 0, time.UTC),
+			start: parse("Wed 5:30PM"),
+			end:   parse("Thu 5:30AM"),
+			freq:  time.Minute,
+			want:  time.Date(2017, 8, 24, 4, 23, 0, 0, time.UTC),
+		},
+		{
+			desc:  "after_inner_tick",
+			t:     time.Date(2017, 8, 24, 4, 22, 36, 0, time.UTC),
+			start: parse("Wed 5:30PM"),
+			end:   parse("Thu 5:30AM"),
+			freq:  time.Minute,
+			want:  time.Date(2017, 8, 24, 4, 23, 0, 0, time.UTC),
+		},
+		{
+			desc:  "at_last_tick",
+			t:     time.Date(2017, 8, 24, 5, 29, 0, 0, time.UTC),
+			start: parse("Wed 5:30PM"),
+			end:   parse("Thu 5:30AM"),
+			freq:  time.Minute,
+			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
+		},
+		{
+			desc:  "after_last_tick",
+			t:     time.Date(2017, 8, 24, 5, 29, 47, 0, time.UTC),
+			start: parse("Wed 5:30PM"),
+			end:   parse("Thu 5:30AM"),
+			freq:  time.Minute,
+			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
+		},
+		{
+			desc:  "after_interval",
+			t:     time.Date(2017, 8, 25, 13, 42, 26, 0, time.UTC),
+			start: parse("Wed 5:30PM"),
+			end:   parse("Thu 5:30AM"),
+			freq:  time.Minute,
+			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
+		},
+	} {
+		test := test
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+			if got := nextTick(test.t, test.start, test.end, test.freq); got != test.want {
+				t.Errorf("nextTick(%v, %v, %v, %v) = %v, want %v", test.t, test.start, test.end, test.freq, got, test.want)
+			}
+		})
+	}
+}
+
 func TestParse(t *testing.T) {
 	t.Parallel()
 	for i, test := range []struct {
@@ -20,7 +106,7 @@ func TestParse(t *testing.T) {
 		{"Fri 11:59PM", Time{day: time.Friday, hour: 23, min: 59}},
 		{"Sat 5:17PM", Time{day: time.Saturday, hour: 17, min: 17}},
 	} {
-		i, test := i, test
+		test := test
 		t.Run(fmt.Sprintf("TestParse-%d", i), func(t *testing.T) {
 			t.Parallel()
 			got, err := Parse(test.val)
@@ -36,29 +122,24 @@ func TestParse(t *testing.T) {
 
 func TestInWeek(t *testing.T) {
 	t.Parallel()
-
 	for i, val := range []time.Time{
 		time.Unix(0, 0),
 		time.Unix(1502857357, 0),
 		time.Unix(0, 423000),
 		time.Unix(1502857357, 423000),
 	} {
-		for j, wantWeekTimeStr := range []string{
-			"Sun 5:13AM",
-			"Mon 11:43AM",
-			"Tue 12:00AM",
-			"Wed 12:00PM",
-			"Thu 7:30PM",
-			"Fri 11:59PM",
-			"Sat 5:17PM",
+		for j, wantWeekTime := range []Time{
+			parse("Sun 5:13AM"),
+			parse("Mon 11:43AM"),
+			parse("Tue 12:00AM"),
+			parse("Wed 12:00PM"),
+			parse("Thu 7:30PM"),
+			parse("Fri 11:59PM"),
+			parse("Sat 5:17PM"),
 		} {
-			i, j, val, wantWeekTimeStr := i, j, val, wantWeekTimeStr
+			val, wantWeekTime := val, wantWeekTime
 			t.Run(fmt.Sprintf("TestInWeek-%d-%d", i, j), func(t *testing.T) {
 				t.Parallel()
-				wantWeekTime, err := Parse(wantWeekTimeStr)
-				if err != nil {
-					t.Fatalf("Unexpected error parsing Time string %q: %v", wantWeekTimeStr, err)
-				}
 				gotTime := wantWeekTime.InWeek(val)
 				if gotTime.Weekday() != wantWeekTime.day {
 					t.Errorf("Want day %s, got %s", wantWeekTime.day, gotTime.Weekday())
@@ -70,7 +151,7 @@ func TestInWeek(t *testing.T) {
 					t.Errorf("Want minute %d, got %d", wantWeekTime.min, gotTime.Hour())
 				}
 				if !gotTime.Equal(wantWeekTime.InWeek(gotTime)) {
-					t.Errorf("InWeek not idempotent for time-in-week %s, starting time %v", wantWeekTimeStr, val)
+					t.Errorf("InWeek not idempotent for time-in-week %+v, starting time %v", wantWeekTime, val)
 				}
 				if !inSameWeek(val, gotTime) {
 					t.Errorf("Got %v, want time in same week as %v", t, val)
@@ -81,10 +162,43 @@ func TestInWeek(t *testing.T) {
 	}
 }
 
+func TestString(t *testing.T) {
+	t.Parallel()
+	for i, want := range []string{
+		"Sun 5:13AM",
+		"Mon 11:43AM",
+		"Tue 12:00AM",
+		"Wed 12:00PM",
+		"Thu 7:30PM",
+		"Fri 11:59PM",
+		"Sat 5:17PM",
+	} {
+		want := want
+		t.Run(fmt.Sprintf("TestString-%d", i), func(t *testing.T) {
+			t.Parallel()
+			wt, err := Parse(want)
+			if err != nil {
+				t.Fatalf("Parse(%s) returned error: %v", want, err)
+			}
+			if got := wt.String(); got != want {
+				t.Errorf("wt.String() = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func inSameWeek(t1, t2 time.Time) bool {
 	t1 = t1.AddDate(0, 0, -int(t1.Weekday()))
 	t2 = t2.AddDate(0, 0, -int(t2.Weekday()))
 	return t1.Year() == t2.Year() &&
 		t1.Month() == t2.Month() &&
 		t1.Day() == t2.Day()
+}
+
+func parse(val string) Time {
+	t, err := Parse(val)
+	if err != nil {
+		panic(fmt.Sprintf("couldn't parse %q: %v", val, err))
+	}
+	return t
 }

@@ -8,19 +8,6 @@ import (
 	"time"
 )
 
-var (
-	// Used by Parse.
-	dayMap = map[string]time.Weekday{
-		"Sun ": time.Sunday,
-		"Mon ": time.Monday,
-		"Tue ": time.Tuesday,
-		"Wed ": time.Wednesday,
-		"Thu ": time.Thursday,
-		"Fri ": time.Friday,
-		"Sat ": time.Saturday,
-	}
-)
-
 // A Ticker holds a channel that delivers ticks of a clock at intervals.
 // It starts & stops ticking at the same time each week.
 type Ticker struct {
@@ -45,39 +32,17 @@ func NewTicker(start, end Time, freq time.Duration) *Ticker {
 }
 
 func tick(ch chan<- time.Time, done chan struct{}, start, end Time, freq time.Duration) {
-	now := time.Now()
+	tck := time.Now()
 	for {
-		// Figure out when the next tick is.
-		var nextTick time.Time
-
-		s, e := start.InWeek(now), end.InWeek(now)
-		switch {
-		case now.Before(s):
-			// We haven't started ticking yet this week.
-			nextTick = s
-
-		case now.Before(e):
-			// We are currently ticking. Figure out the next tick from when we are.
-			nextTick = s.Add(freq * (1 + (now.Sub(s) / freq)))
-			if nextTick.Before(e) {
-				break
-			}
-			// The next tick is after the end of the ticking interval. We're done ticking this week.
-			fallthrough
-
-		default:
-			// We are done ticking this week. Wait until we start ticking next week.
-			nextTick = s.AddDate(0, 0, 7)
-		}
-
-		// Go to sleep until we are ready to tick.
-		tmr := time.NewTimer(nextTick.Sub(now))
+		// Go to sleep until we reach the next tick..
+		nxt := nextTick(tck, start, end, freq)
+		tmr := time.NewTimer(time.Until(tck))
 		select {
-		case t := <-tmr.C:
+		case <-tmr.C:
 			// Send the tick from the timer in case it was delayed.
-			// Drop the tick if no one is ready to receive it.
+			// Drop the tick if it is not ready to be received..
 			select {
-			case ch <- t:
+			case ch <- tck:
 			default:
 			}
 
@@ -87,10 +52,29 @@ func tick(ch chan<- time.Time, done chan struct{}, start, end Time, freq time.Du
 			}
 			return
 		}
+		tck = nxt
+	}
+}
 
-		// Set now to be the tick time.
-		// Use the computed time instead of the time from the timer in order to maintain determinism.
-		now = nextTick
+func nextTick(tck time.Time, start, end Time, freq time.Duration) time.Time {
+	s, e := start.InWeek(tck), end.InWeek(tck)
+	switch {
+	case tck.Before(s):
+		// We haven't started ticking yet this week.
+		return s
+
+	case tck.Before(e):
+		// We are currently ticking. Figure out the next tick from when we are.
+		nxt := s.Add(freq * (1 + (tck.Sub(s) / freq)))
+		if nxt.Before(e) {
+			return nxt
+		}
+		// The next tick is after the end of the ticking interval. We're done ticking this week.
+		fallthrough
+
+	default:
+		// We are done ticking this week. Wait until we start ticking next week.
+		return s.AddDate(0, 0, 7)
 	}
 }
 
@@ -109,7 +93,7 @@ func Parse(val string) (Time, error) {
 	if len(val) < 4 {
 		return Time{}, errors.New("bad weekday")
 	}
-	day, ok := dayMap[val[:4]]
+	day, ok := strToDay[val[:4]]
 	if !ok {
 		return Time{}, errors.New("bad weekday")
 	}
@@ -125,3 +109,39 @@ func Parse(val string) (Time, error) {
 func (wt Time) InWeek(tt time.Time) time.Time {
 	return time.Date(tt.Year(), tt.Month(), tt.Day()+int(wt.day)-int(tt.Weekday()), wt.hour, wt.min, 0, 0, tt.Location())
 }
+
+func (wt Time) String() string {
+	ampm := "AM"
+	if wt.hour >= 12 {
+		ampm = "PM"
+	}
+	mhr := wt.hour % 12
+	if mhr == 0 {
+		mhr = 12
+	}
+	return fmt.Sprintf("%s %d:%02d%s", dayToStr[wt.day], mhr, wt.min, ampm)
+}
+
+var (
+	// Used by Parse.
+	strToDay = map[string]time.Weekday{
+		"Sun ": time.Sunday,
+		"Mon ": time.Monday,
+		"Tue ": time.Tuesday,
+		"Wed ": time.Wednesday,
+		"Thu ": time.Thursday,
+		"Fri ": time.Friday,
+		"Sat ": time.Saturday,
+	}
+
+	// Used by String.
+	dayToStr = map[time.Weekday]string{
+		time.Sunday:    "Sun",
+		time.Monday:    "Mon",
+		time.Tuesday:   "Tue",
+		time.Wednesday: "Wed",
+		time.Thursday:  "Thu",
+		time.Friday:    "Fri",
+		time.Saturday:  "Sat",
+	}
+)
