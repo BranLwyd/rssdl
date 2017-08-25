@@ -11,25 +11,35 @@ message Feed {
   // Required. The URL of the feed.
   string url = 2;
 
-  // Required. When to start checking the feed each week, as a string in the format "Thu 7:30PM".
-  string check_start = 3;
-  // Required. When to stop checking the feed each week, as a string in the format "Thu 7:30PM".
-  string check_end = 4;
-  // Required. How frequently to check the feed, in seconds per check.
-  uint32 check_freq_s = 5;
-  
   // Required. A regex applied to the title, which should have as its first
   // capture group a string used to lexicographically order feed results.
   // Anything that does not fit this regex, or is not newer than the current
   // greatest value, is discarded.
-  string order_regex = 6;
+  string order_regex = 3;
+
+  // Required. When to start checking the feed each week, as a string in the format "Thu 7:30PM".
+  string check_start = 4;
+  // Required. When to stop checking the feed each week, as a string in the format "Thu 7:30PM".
+  string check_end = 5;
+  // Required. How frequently to check the feed, in seconds per check.
+  uint32 check_freq_s = 6;
 }
 
 // Config specifies the configuration for rssdld.
 message Config {
   // The feeds to watch. Each feed must have a unique name.
   repeated Feed feed = 1;
+
+  // Required. The download location.
+  string download_dir = 2;
 }
 
 message State {
+  message FeedState {
+    // The current order, as captured by the feed's order_regex.
+    string order = 1;
+  }
+
+  // The current state of each feed, by feed name.
+  map<string, FeedState> feed_state = 1;
 }

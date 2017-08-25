@@ -36,13 +36,13 @@ func tick(ch chan<- time.Time, done chan struct{}, start, end Time, freq time.Du
 	for {
 		// Go to sleep until we reach the next tick..
 		nxt := nextTick(tck, start, end, freq)
-		tmr := time.NewTimer(time.Until(tck))
+		tmr := time.NewTimer(time.Until(nxt))
 		select {
 		case <-tmr.C:
 			// Send the tick from the timer in case it was delayed.
 			// Drop the tick if it is not ready to be received..
 			select {
-			case ch <- tck:
+			case ch <- nxt:
 			default:
 			}
 
@@ -56,7 +56,7 @@ func tick(ch chan<- time.Time, done chan struct{}, start, end Time, freq time.Du
 	}
 }
 
-func nextTick(tck time.Time, start, end Time, freq time.Duration) time.Time {
+func nextTick(tck time.Time, start, end Time, freq time.Duration) (nxt time.Time) {
 	s, e := start.InWeek(tck), end.InWeek(tck)
 	switch {
 	case tck.Before(s):

@@ -9,6 +9,12 @@ go_prefix("github.com/BranLwyd/rssdl")
 go_binary(
     name = "rssdld",
     srcs = ["rssdld.go"],
+    deps = [
+        ":rssdl_proto",
+        ":weekly",
+        "@com_github_golang_protobuf//proto:go_default_library",
+	"@com_github_mmcdole_gofeed//:go_default_library",
+    ],
 )
 
 ##
