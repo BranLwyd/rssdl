@@ -20,64 +20,64 @@ func TestNextTick(t *testing.T) {
 		{
 			desc:  "before_interval",
 			t:     time.Date(2017, 8, 21, 15, 23, 11, 423691, time.UTC),
-			start: parse("Wed 5:30PM"),
-			end:   parse("Thu 5:30AM"),
+			start: MustParse("Wed 5:30PM"),
+			end:   MustParse("Thu 5:30AM"),
 			freq:  time.Minute,
 			want:  time.Date(2017, 8, 23, 17, 30, 0, 0, time.UTC),
 		},
 		{
 			desc:  "at_first_tick",
 			t:     time.Date(2017, 8, 23, 17, 30, 0, 0, time.UTC),
-			start: parse("Wed 5:30PM"),
-			end:   parse("Thu 5:30AM"),
+			start: MustParse("Wed 5:30PM"),
+			end:   MustParse("Thu 5:30AM"),
 			freq:  time.Minute,
 			want:  time.Date(2017, 8, 23, 17, 31, 0, 0, time.UTC),
 		},
 		{
 			desc:  "after_first_tick",
 			t:     time.Date(2017, 8, 23, 17, 30, 22, 0, time.UTC),
-			start: parse("Wed 5:30PM"),
-			end:   parse("Thu 5:30AM"),
+			start: MustParse("Wed 5:30PM"),
+			end:   MustParse("Thu 5:30AM"),
 			freq:  time.Minute,
 			want:  time.Date(2017, 8, 23, 17, 31, 0, 0, time.UTC),
 		},
 		{
 			desc:  "at_inner_tick",
 			t:     time.Date(2017, 8, 24, 4, 22, 0, 0, time.UTC),
-			start: parse("Wed 5:30PM"),
-			end:   parse("Thu 5:30AM"),
+			start: MustParse("Wed 5:30PM"),
+			end:   MustParse("Thu 5:30AM"),
 			freq:  time.Minute,
 			want:  time.Date(2017, 8, 24, 4, 23, 0, 0, time.UTC),
 		},
 		{
 			desc:  "after_inner_tick",
 			t:     time.Date(2017, 8, 24, 4, 22, 36, 0, time.UTC),
-			start: parse("Wed 5:30PM"),
-			end:   parse("Thu 5:30AM"),
+			start: MustParse("Wed 5:30PM"),
+			end:   MustParse("Thu 5:30AM"),
 			freq:  time.Minute,
 			want:  time.Date(2017, 8, 24, 4, 23, 0, 0, time.UTC),
 		},
 		{
 			desc:  "at_last_tick",
 			t:     time.Date(2017, 8, 24, 5, 29, 0, 0, time.UTC),
-			start: parse("Wed 5:30PM"),
-			end:   parse("Thu 5:30AM"),
+			start: MustParse("Wed 5:30PM"),
+			end:   MustParse("Thu 5:30AM"),
 			freq:  time.Minute,
 			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
 		},
 		{
 			desc:  "after_last_tick",
 			t:     time.Date(2017, 8, 24, 5, 29, 47, 0, time.UTC),
-			start: parse("Wed 5:30PM"),
-			end:   parse("Thu 5:30AM"),
+			start: MustParse("Wed 5:30PM"),
+			end:   MustParse("Thu 5:30AM"),
 			freq:  time.Minute,
 			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
 		},
 		{
 			desc:  "after_interval",
 			t:     time.Date(2017, 8, 25, 13, 42, 26, 0, time.UTC),
-			start: parse("Wed 5:30PM"),
-			end:   parse("Thu 5:30AM"),
+			start: MustParse("Wed 5:30PM"),
+			end:   MustParse("Thu 5:30AM"),
 			freq:  time.Minute,
 			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
 		},
@@ -129,13 +129,13 @@ func TestInWeek(t *testing.T) {
 		time.Unix(1502857357, 423000),
 	} {
 		for j, wantWeekTime := range []Time{
-			parse("Sun 5:13AM"),
-			parse("Mon 11:43AM"),
-			parse("Tue 12:00AM"),
-			parse("Wed 12:00PM"),
-			parse("Thu 7:30PM"),
-			parse("Fri 11:59PM"),
-			parse("Sat 5:17PM"),
+			MustParse("Sun 5:13AM"),
+			MustParse("Mon 11:43AM"),
+			MustParse("Tue 12:00AM"),
+			MustParse("Wed 12:00PM"),
+			MustParse("Thu 7:30PM"),
+			MustParse("Fri 11:59PM"),
+			MustParse("Sat 5:17PM"),
 		} {
 			val, wantWeekTime := val, wantWeekTime
 			t.Run(fmt.Sprintf("TestInWeek-%d-%d", i, j), func(t *testing.T) {
@@ -193,12 +193,4 @@ func inSameWeek(t1, t2 time.Time) bool {
 	return t1.Year() == t2.Year() &&
 		t1.Month() == t2.Month() &&
 		t1.Day() == t2.Day()
-}
-
-func parse(val string) Time {
-	t, err := Parse(val)
-	if err != nil {
-		panic(fmt.Sprintf("couldn't parse %q: %v", val, err))
-	}
-	return t
 }

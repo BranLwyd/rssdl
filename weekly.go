@@ -111,6 +111,14 @@ func Parse(val string) (Time, error) {
 	return Time{day: day, hour: t.Hour(), min: t.Minute()}, nil
 }
 
+func MustParse(val string) Time {
+	t, err := Parse(val)
+	if err != nil {
+		panic(fmt.Sprintf("Parse(%q): %v", val, err))
+	}
+	return t
+}
+
 // InWeek converts a given weekly.Time to a time.Time in the same week as the
 // given time.Time.
 func (wt Time) InWeek(tt time.Time) time.Time {

@@ -30,6 +30,12 @@ go_library(
     ],
 )
 
+go_test(
+    name = "config_test",
+    srcs = ["config_test.go"],
+    library = "config",
+)
+
 go_library(
     name = "state",
     srcs = ["state.go"],

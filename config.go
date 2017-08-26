@@ -23,77 +23,77 @@ type Feed struct {
 }
 
 func Parse(cfg string) ([]*Feed, error) {
-	cpb := &pb.Config{}
-	if err := proto.UnmarshalText(cfg, cpb); err != nil {
+	c := &pb.Config{}
+	if err := proto.UnmarshalText(cfg, c); err != nil {
 		return nil, fmt.Errorf("could not parse config: %v", err)
 	}
-	if len(cpb.Feed) == 0 {
+	if len(c.Feed) == 0 {
 		return nil, errors.New("config does not specify any feeds to watch")
 	}
-	feeds := make([]*Feed, 0, len(cpb.Feed))
-	names := make(map[string]struct{}, len(cpb.Feed))
+	feeds := make([]*Feed, 0, len(c.Feed))
+	names := make(map[string]struct{}, len(c.Feed))
 
-	for i, fpb := range cpb.Feed {
-		if fpb.Name == "" {
-			return nil, fmt.Errorf("unnamed feed at index %d", i)
+	for i, f := range c.Feed {
+		if f.Name == "" {
+			return nil, fmt.Errorf("feed at index %d has no name", i)
 		}
-		if _, ok := names[fpb.Name]; ok {
-			return nil, fmt.Errorf("duplicate feed name %q", fpb.Name)
+		if _, ok := names[f.Name]; ok {
+			return nil, fmt.Errorf("duplicate feed name %q", f.Name)
 		}
-		names[fpb.Name] = struct{}{}
+		names[f.Name] = struct{}{}
 
-		if fpb.Url == "" {
-			return nil, fmt.Errorf("feed %q has no URL", fpb.Name)
+		if f.Url == "" {
+			return nil, fmt.Errorf("feed %q has no URL", f.Name)
 		}
 
-		dd := defaultString(fpb.DownloadDir, cpb.DownloadDir)
+		dd := defaultString(f.DownloadDir, c.DownloadDir)
 		if dd == "" {
-			return nil, fmt.Errorf("feed %q has no download_dir and no default specified", fpb.Name)
+			return nil, fmt.Errorf("feed %q has no download_dir and no default specified", f.Name)
 		}
 
-		reStr := defaultString(fpb.OrderRegex, cpb.OrderRegex)
+		reStr := defaultString(f.OrderRegex, c.OrderRegex)
 		if reStr == "" {
-			return nil, fmt.Errorf("feed %q had no order_regex and no default specified", fpb.Name)
+			return nil, fmt.Errorf("feed %q has no order_regex and no default specified", f.Name)
 		}
 		re, err := regexp.Compile(reStr)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't compile order regex for feed %q: %v", fpb.Name, err)
+			return nil, fmt.Errorf("error parsing order_regex for feed %q: %v", f.Name, err)
 		}
 		if re.NumSubexp() != 1 {
-			return nil, fmt.Errorf("order regex for feed %q had %d subexpressions, expected 1", fpb.Name, re.NumSubexp())
+			return nil, fmt.Errorf("order regex for feed %q has %d capture groups, expected 1", f.Name, re.NumSubexp())
 		}
 
-		csStr := defaultString(fpb.CheckStart, cpb.CheckStart)
+		csStr := defaultString(f.CheckStart, c.CheckStart)
 		if csStr == "" {
-			return nil, fmt.Errorf("feed %q had no check_start and no default specified", fpb.Name)
+			return nil, fmt.Errorf("feed %q has no check_start and no default specified", f.Name)
 		}
 		cs, err := weekly.Parse(csStr)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't parse check start time for feed %q: %v", fpb.Name, err)
+			return nil, fmt.Errorf("error parsing check_start for feed %q: %v", f.Name, err)
 		}
 
-		ceStr := defaultString(fpb.CheckEnd, cpb.CheckEnd)
+		ceStr := defaultString(f.CheckEnd, c.CheckEnd)
 		if ceStr == "" {
-			return nil, fmt.Errorf("feed %q had no check_end and no default specified", fpb.Name)
+			return nil, fmt.Errorf("feed %q has no check_end and no default specified", f.Name)
 		}
-		ce, err := weekly.Parse(fpb.CheckEnd)
+		ce, err := weekly.Parse(ceStr)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't parse check end time for feed %q: %v", fpb.Name, err)
+			return nil, fmt.Errorf("error parsing check_end for feed %q: %v", f.Name, err)
 		}
 
 		if ce.Before(cs) {
-			return nil, fmt.Errorf("feed %q has check_end before check_start", fpb.Name)
+			return nil, fmt.Errorf("feed %q has check_end before check_start", f.Name)
 		}
 
-		cfs := defaultUint32(fpb.CheckFreqS, cpb.CheckFreqS)
+		cfs := defaultUint32(f.CheckFreqS, c.CheckFreqS)
 		if cfs == 0 {
-			return nil, fmt.Errorf("feed %q had no check_freq_s and no default specified", fpb.Name)
+			return nil, fmt.Errorf("feed %q has no check_freq_s and no default specified", f.Name)
 		}
 		cf := time.Duration(cfs) * time.Second
 
 		feeds = append(feeds, &Feed{
-			Name:        fpb.Name,
-			URL:         fpb.Url,
+			Name:        f.Name,
+			URL:         f.Url,
 			DownloadDir: dd,
 			OrderRegexp: re,
 			CheckStart:  cs,
