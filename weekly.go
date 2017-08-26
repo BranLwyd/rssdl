@@ -21,14 +21,21 @@ func (t *Ticker) Stop() {
 }
 
 // NewTicker returns a ticker that starts and stops ticking at the same time each week.
-func NewTicker(start, end Time, freq time.Duration) *Ticker {
+func NewTicker(start, end Time, freq time.Duration) (*Ticker, error) {
+	if end.Before(start) {
+		return nil, errors.New("end is before start")
+	}
+	if freq <= 0 {
+		return nil, errors.New("freq is nonpositive")
+	}
+
 	ch := make(chan time.Time)
 	done := make(chan struct{})
 	go tick(ch, done, start, end, freq)
 	return &Ticker{
 		C:    ch,
 		done: done,
-	}
+	}, nil
 }
 
 func tick(ch chan<- time.Time, done chan struct{}, start, end Time, freq time.Duration) {
@@ -108,6 +115,12 @@ func Parse(val string) (Time, error) {
 // given time.Time.
 func (wt Time) InWeek(tt time.Time) time.Time {
 	return time.Date(tt.Year(), tt.Month(), tt.Day()+int(wt.day)-int(tt.Weekday()), wt.hour, wt.min, 0, 0, tt.Location())
+}
+
+func (wt Time) Before(owt Time) bool {
+	return wt.day < owt.day ||
+		wt.hour < owt.hour ||
+		wt.min < owt.min
 }
 
 func (wt Time) String() string {

@@ -3,7 +3,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -14,12 +13,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/BranLwyd/rssdl/config"
 	"github.com/BranLwyd/rssdl/weekly"
 	"github.com/golang/protobuf/proto"
 	"github.com/mmcdole/gofeed"
@@ -31,62 +29,6 @@ var (
 	configPath = flag.String("config", "", "Path to service configuration.")
 	statePath  = flag.String("state", "", "Path to state.")
 )
-
-type Feed struct {
-	URL         string
-	OrderRE     *regexp.Regexp
-	CheckTicker *weekly.Ticker
-}
-
-type Config struct {
-	Feeds       map[string]*Feed
-	DownloadDir string
-}
-
-func ParseConfig(cfg string) (*Config, error) {
-	cpb := &pb.Config{}
-	if err := proto.UnmarshalText(cfg, cpb); err != nil {
-		return nil, fmt.Errorf("could not parse config: %v", err)
-	}
-	if cpb.DownloadDir == "" {
-		return nil, errors.New("no download_dir specified")
-	}
-
-	c := &Config{
-		Feeds:       map[string]*Feed{},
-		DownloadDir: cpb.DownloadDir,
-	}
-	for _, fpb := range cpb.Feed {
-		if _, ok := c.Feeds[fpb.Name]; ok {
-			return nil, fmt.Errorf("duplicate feed name %q", fpb.Name)
-		}
-
-		re, err := regexp.Compile(fpb.OrderRegex)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't compile order regex for feed %q: %v", fpb.Name, err)
-		}
-		if re.NumSubexp() != 1 {
-			return nil, fmt.Errorf("order regex for feed %q had %d subexpressions, expected 1", fpb.Name, re.NumSubexp())
-		}
-
-		s, err := weekly.Parse(fpb.CheckStart)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't parse check start time for feed %q: %v", fpb.Name, err)
-		}
-		e, err := weekly.Parse(fpb.CheckEnd)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't parse check end time for feed %q: %v", fpb.Name, err)
-		}
-		freq := time.Duration(fpb.CheckFreqS) * time.Second
-
-		c.Feeds[fpb.Name] = &Feed{
-			URL:         fpb.Url,
-			OrderRE:     re,
-			CheckTicker: weekly.NewTicker(s, e, freq),
-		}
-	}
-	return c, nil
-}
 
 type State struct {
 	filename string
@@ -198,12 +140,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not read config file: %v", err)
 	}
-	cfg, err := ParseConfig(string(cfgBytes))
+	feeds, err := config.Parse(string(cfgBytes))
 	if err != nil {
 		log.Fatalf("Could not parse config: %v", err)
-	}
-	if len(cfg.Feeds) == 0 {
-		log.Printf("Config does not specify any feeds to watch")
 	}
 
 	// Parse state.
@@ -213,25 +152,29 @@ func main() {
 	}
 
 	// Start feed-checker goroutines.
-	for name := range cfg.Feeds {
-		go checkFeed(name, cfg, s)
+	for _, feed := range feeds {
+		go checkFeed(feed, s)
 	}
 	select {}
 }
 
-func checkFeed(name string, cfg *Config, s *State) {
-	f := cfg.Feeds[name]
+func checkFeed(f *config.Feed, s *State) {
 	parser := gofeed.NewParser()
-	order := s.GetOrder(name)
+	order := s.GetOrder(f.Name)
 	orderModified := false
 
-	log.Printf("Watching %q", name)
+	ticker, err := weekly.NewTicker(f.CheckStart, f.CheckEnd, f.CheckFreq)
+	if err != nil {
+		log.Fatalf("[%s] Could not create ticker: %v", f.Name, err)
+	}
+
+	log.Printf("Watching %q", f.Name)
 CHECK_LOOP:
-	for range f.CheckTicker.C {
-		log.Printf("[%s] Checking", name)
+	for range ticker.C {
+		log.Printf("[%s] Checking", f.Name)
 		feed, err := parser.ParseURL(f.URL)
 		if err != nil {
-			fmt.Printf("[%s] Could not parse feed: %v", name, err)
+			fmt.Printf("[%s] Could not parse feed: %v", f.Name, err)
 			continue
 		}
 		itms := feed.Items
@@ -239,7 +182,7 @@ CHECK_LOOP:
 		// Order the feed's items, oldest first.
 		for _, itm := range itms {
 			if itm.PublishedParsed == nil {
-				fmt.Printf("[%s] %q has no published time, or time could not be parsed", name, itm.Title)
+				fmt.Printf("[%s] %q has no published time, or time could not be parsed", f.Name, itm.Title)
 				continue CHECK_LOOP
 			}
 		}
@@ -247,7 +190,7 @@ CHECK_LOOP:
 
 		for _, itm := range itms {
 			// Check order.
-			m := f.OrderRE.FindStringSubmatch(itm.Title)
+			m := f.OrderRegexp.FindStringSubmatch(itm.Title)
 			if m == nil {
 				continue
 			}
@@ -257,18 +200,18 @@ CHECK_LOOP:
 			}
 
 			// Download.
-			log.Printf("[%s] Found %s", name, itm.Title)
-			if err := download(itm.Link, cfg.DownloadDir); err != nil {
-				fmt.Printf("[%s] Could not download %q: %v", name, itm.Title, err)
+			log.Printf("[%s] Found %s", f.Name, itm.Title)
+			if err := download(itm.Link, f.DownloadDir); err != nil {
+				fmt.Printf("[%s] Could not download %q: %v", f.Name, itm.Title, err)
 				break
 			}
 			order, orderModified = o, true
 		}
 		if orderModified {
-			if err := s.SetOrder(name, order); err != nil {
+			if err := s.SetOrder(f.Name, order); err != nil {
 				// TODO: if writing fails, retry writes independently of checks
 				// (otherwise, pending writes may stay in memory for a week!)
-				fmt.Printf("[%s] Could not update order: %v", name, err)
+				fmt.Printf("[%s] Could not update order: %v", f.Name, err)
 			} else {
 				orderModified = false
 			}

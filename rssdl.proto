@@ -10,19 +10,23 @@ message Feed {
   string name = 1;
   // Required. The URL of the feed.
   string url = 2;
-
-  // Required. A regex applied to the title, which should have as its first
-  // capture group a string used to lexicographically order feed results.
-  // Anything that does not fit this regex, or is not newer than the current
-  // greatest value, is discarded.
-  string order_regex = 3;
-
-  // Required. When to start checking the feed each week, as a string in the format "Thu 7:30PM".
-  string check_start = 4;
-  // Required. When to stop checking the feed each week, as a string in the format "Thu 7:30PM".
-  string check_end = 5;
-  // Required. How frequently to check the feed, in seconds per check.
-  uint32 check_freq_s = 6;
+  // Required if not set in config. The location to which linked files are
+  // downloaded.
+  string download_dir = 3;
+  // Required if not set in config. A regex applied to the title, which should
+  // have exactly one capture group. Any feed items that do not match the
+  // regex, or do not capture an "order" that is lexicographically the greatest
+  // seen so far, are discarded.
+  string order_regex = 4;
+  // Required if not set in config. When to start checking the feed each week,
+  // as a string in the format "Thu 7:30PM".
+  string check_start = 5;
+  // Required if not set in config. When to stop checking the feed each week,
+  // as a string in the format "Thu 7:30PM".
+  string check_end = 6;
+  // Required if not set in config. How frequently to check the feed, in
+  // seconds per check.
+  uint32 check_freq_s = 7;
 }
 
 // Config specifies the configuration for rssdld.
@@ -30,8 +34,22 @@ message Config {
   // The feeds to watch. Each feed must have a unique name.
   repeated Feed feed = 1;
 
-  // Required. The download location.
+  // The settings below are overridden by their feed-specific counterparts.
+
+  // The location to which linked files are downloaded.
   string download_dir = 2;
+  // A regex applied to the title, which should have exactly one capture group.
+  // Any feed items that do not match the regex, or do not capture an "order"
+  // that is lexicographically the greatest seen so far, are discarded.
+  string order_regex = 3;
+  // When to start checking each feed each week, as a string in the format "Thu
+  // 7:30PM".
+  string check_start = 4;
+  // When to stop checking each feed each week, as a string in the format "Thu
+  // 7:30PM".
+  string check_end = 5;
+  // How frequently to check the feed, in seconds per check.
+  uint32 check_freq_s = 6;
 }
 
 message State {
