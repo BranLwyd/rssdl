@@ -11,9 +11,8 @@ go_binary(
     srcs = ["rssdld.go"],
     deps = [
         ":config",
-        ":rssdl_proto",
+        ":state",
         ":weekly",
-        "@com_github_golang_protobuf//proto:go_default_library",
         "@com_github_mmcdole_gofeed//:go_default_library",
     ],
 )
@@ -27,6 +26,15 @@ go_library(
     deps = [
         ":rssdl_proto",
         ":weekly",
+        "@com_github_golang_protobuf//proto:go_default_library",
+    ],
+)
+
+go_library(
+    name = "state",
+    srcs = ["state.go"],
+    deps = [
+        ":rssdl_proto",
         "@com_github_golang_protobuf//proto:go_default_library",
     ],
 )
