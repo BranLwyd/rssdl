@@ -333,7 +333,7 @@ func TestParse(t *testing.T) {
 				t.Errorf("Unexpected error: %v", err)
 			case test.wantErr != nil:
 				if err == nil || !test.wantErr.MatchString(err.Error()) {
-					t.Errorf("Got error %q, wanted error matching pattern %q", err, test.wantErr)
+					t.Errorf("Parse got error %q, wanted error matching pattern %q", err, test.wantErr)
 				}
 			}
 		})

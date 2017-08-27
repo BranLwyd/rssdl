@@ -45,6 +45,12 @@ go_library(
     ],
 )
 
+go_test(
+    name = "state_test",
+    srcs = ["state_test.go"],
+    library = "state",
+)
+
 go_library(
     name = "weekly",
     srcs = ["weekly.go"],

@@ -21,33 +21,32 @@ type State struct {
 }
 
 func Open(filename string) (*State, error) {
+	var s *pb.State
 	sBytes, err := ioutil.ReadFile(filename)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// No state file. Return an empty state.
-			// Write immediately so we'll fail out now if the state is in an unwritable location.
-			log.Printf("State file %q does not exist. Starting fresh", filename)
-			s := &State{
-				filename: filename,
-				s:        &pb.State{},
-			}
-			if err := s.write(); err != nil {
-				return nil, err
-			}
-			return s, nil
+	if err == nil {
+		s = &pb.State{}
+		if err := proto.Unmarshal(sBytes, s); err != nil {
+			return nil, fmt.Errorf("could not parse state: %v", err)
 		}
-		return nil, fmt.Errorf("could not read state file: %v", err)
+	} else {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("could not read state file: %v", err)
+		}
+
+		// No state file. Return an empty state.
+		log.Printf("State file %q does not exist. Starting fresh", filename)
+		s = &pb.State{}
 	}
 
-	s := &pb.State{}
-	if err := proto.Unmarshal(sBytes, s); err != nil {
-		return nil, fmt.Errorf("could not parse state: %v", err)
-	}
-
-	return &State{
+	state := &State{
 		filename: filename,
 		s:        s,
-	}, nil
+	}
+	// Write immediately so we'll fail out now if the state is in an unwritable location.
+	if err := state.write(); err != nil {
+		return nil, fmt.Errorf("could not write state file: %v", err)
+	}
+	return state, nil
 }
 
 func (s *State) GetOrder(name string) string {
@@ -60,7 +59,7 @@ func (s *State) GetOrder(name string) string {
 	return fs.Order
 }
 
-func (s *State) SetOrder(name, order string) (retErr error) {
+func (s *State) SetOrder(name, order string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
