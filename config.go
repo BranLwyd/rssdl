@@ -17,9 +17,7 @@ type Feed struct {
 	URL         string
 	DownloadDir string
 	OrderRegexp *regexp.Regexp
-	CheckStart  weekly.Time
-	CheckEnd    weekly.Time
-	CheckFreq   time.Duration
+	CheckSpecs  []weekly.TickSpecification
 }
 
 func Parse(cfg string) ([]*Feed, error) {
@@ -63,42 +61,52 @@ func Parse(cfg string) ([]*Feed, error) {
 			return nil, fmt.Errorf("order regex for feed %q has %d capture groups, expected 1", f.Name, re.NumSubexp())
 		}
 
-		csStr := defaultString(f.CheckStart, c.CheckStart)
-		if csStr == "" {
-			return nil, fmt.Errorf("feed %q has no check_start and no default specified", f.Name)
+		cs := f.CheckSpec
+		if len(cs) == 0 {
+			cs = c.CheckSpec
 		}
-		cs, err := weekly.Parse(csStr)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing check_start for feed %q: %v", f.Name, err)
+		if len(cs) == 0 {
+			return nil, fmt.Errorf("feed %q has no check_spec and no default specified", f.Name)
 		}
+		ts := make([]weekly.TickSpecification, 0, len(cs))
+		for i, cs := range cs {
+			if cs.Start == "" {
+				return nil, fmt.Errorf("feed %q check_spec[%d] has no start", f.Name, i)
+			}
+			start, err := weekly.Parse(cs.Start)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing start for feed %q check_spec[%d]: %v", f.Name, i, err)
+			}
 
-		ceStr := defaultString(f.CheckEnd, c.CheckEnd)
-		if ceStr == "" {
-			return nil, fmt.Errorf("feed %q has no check_end and no default specified", f.Name)
-		}
-		ce, err := weekly.Parse(ceStr)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing check_end for feed %q: %v", f.Name, err)
-		}
+			if cs.End == "" {
+				return nil, fmt.Errorf("feed %q check_spec[%d] has no end", f.Name, i)
+			}
+			end, err := weekly.Parse(cs.End)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing end for feed %q check_spec[%d]: %v", f.Name, i, err)
+			}
 
-		if ce.Before(cs) {
-			return nil, fmt.Errorf("feed %q has check_end before check_start", f.Name)
-		}
+			if end.Before(start) {
+				return nil, fmt.Errorf("feed %q check_spec[%d] has end before start", f.Name, i)
+			}
 
-		cfs := defaultUint32(f.CheckFreqS, c.CheckFreqS)
-		if cfs == 0 {
-			return nil, fmt.Errorf("feed %q has no check_freq_s and no default specified", f.Name)
+			if cs.FreqS == 0 {
+				return nil, fmt.Errorf("feed %q check_spec[%d] has missing or zero freq_s", f.Name, i)
+			}
+			freq := time.Duration(cs.FreqS) * time.Second
+			ts = append(ts, weekly.TickSpecification{
+				Start:     start,
+				End:       end,
+				Frequency: freq,
+			})
 		}
-		cf := time.Duration(cfs) * time.Second
 
 		feeds = append(feeds, &Feed{
 			Name:        f.Name,
 			URL:         f.Url,
 			DownloadDir: dd,
 			OrderRegexp: re,
-			CheckStart:  cs,
-			CheckEnd:    ce,
-			CheckFreq:   cf,
+			CheckSpecs:  ts,
 		})
 	}
 	return feeds, nil

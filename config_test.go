@@ -26,9 +26,11 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			want: []*Feed{
@@ -37,9 +39,54 @@ func TestParse(t *testing.T) {
 					URL:         "feed url",
 					DownloadDir: "/download/dir",
 					OrderRegexp: regexp.MustCompile("(order_regex)"),
-					CheckStart:  weekly.MustParse("Tue 12:00PM"),
-					CheckEnd:    weekly.MustParse("Thu 12:00PM"),
-					CheckFreq:   60 * time.Second,
+					CheckSpecs: []weekly.TickSpecification{
+						{
+							Start:     weekly.MustParse("Tue 12:00PM"),
+							End:       weekly.MustParse("Thu 12:00PM"),
+							Frequency: 60 * time.Second,
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "multi_check_spec",
+			cfg: `
+				feed {
+					name: "feed name"
+					url: "feed url"
+					download_dir: "/download/dir"
+					order_regex: "(order_regex)"
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
+					check_spec {
+						start: "Thu 12:00PM"
+						end: "Fri 12:00PM"
+						freq_s: 30
+					}
+				}
+			`,
+			want: []*Feed{
+				{
+					Name:        "feed name",
+					URL:         "feed url",
+					DownloadDir: "/download/dir",
+					OrderRegexp: regexp.MustCompile("(order_regex)"),
+					CheckSpecs: []weekly.TickSpecification{
+						{
+							Start:     weekly.MustParse("Tue 12:00PM"),
+							End:       weekly.MustParse("Thu 12:00PM"),
+							Frequency: 60 * time.Second,
+						},
+						{
+							Start:     weekly.MustParse("Thu 12:00PM"),
+							End:       weekly.MustParse("Fri 12:00PM"),
+							Frequency: 30 * time.Second,
+						},
+					},
 				},
 			},
 		},
@@ -48,9 +95,11 @@ func TestParse(t *testing.T) {
 			cfg: `
 				download_dir: "/download/dir"
 				order_regex: "(order_regex)"
-				check_start: "Tue 12:00PM"
-				check_end: "Thu 12:00PM"
-				check_freq_s: 60
+				check_spec {
+					start: "Tue 12:00PM"
+					end: "Thu 12:00PM"
+					freq_s: 60
+				}
 				feed {
 					name: "feed name"
 					url: "feed url"
@@ -62,9 +111,13 @@ func TestParse(t *testing.T) {
 					URL:         "feed url",
 					DownloadDir: "/download/dir",
 					OrderRegexp: regexp.MustCompile("(order_regex)"),
-					CheckStart:  weekly.MustParse("Tue 12:00PM"),
-					CheckEnd:    weekly.MustParse("Thu 12:00PM"),
-					CheckFreq:   60 * time.Second,
+					CheckSpecs: []weekly.TickSpecification{
+						{
+							Start:     weekly.MustParse("Tue 12:00PM"),
+							End:       weekly.MustParse("Thu 12:00PM"),
+							Frequency: 60 * time.Second,
+						},
+					},
 				},
 			},
 		},
@@ -73,17 +126,21 @@ func TestParse(t *testing.T) {
 			cfg: `
 				download_dir: "/bad/download/dir"
 				order_regex: "(bad_order_regex)"
-				check_start: "bad_check_start"
-				check_end: "bad_check_end"
-				check_freq_s: 120
+				check_spec {
+					start: "bad_check_start"
+					end: "bad_check_end"
+					freq_s: 120
+				}
 				feed {
 					name: "feed name"
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			want: []*Feed{
@@ -92,9 +149,13 @@ func TestParse(t *testing.T) {
 					URL:         "feed url",
 					DownloadDir: "/download/dir",
 					OrderRegexp: regexp.MustCompile("(order_regex)"),
-					CheckStart:  weekly.MustParse("Tue 12:00PM"),
-					CheckEnd:    weekly.MustParse("Thu 12:00PM"),
-					CheckFreq:   60 * time.Second,
+					CheckSpecs: []weekly.TickSpecification{
+						{
+							Start:     weekly.MustParse("Tue 12:00PM"),
+							End:       weekly.MustParse("Thu 12:00PM"),
+							Frequency: 60 * time.Second,
+						},
+					},
 				},
 			},
 		},
@@ -115,9 +176,11 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			wantErr: regexp.MustCompile(`feed at index \d+ has no name`),
@@ -130,18 +193,22 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 				feed {
 					name: "feed name"
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			wantErr: regexp.MustCompile("duplicate feed name"),
@@ -153,9 +220,11 @@ func TestParse(t *testing.T) {
 					name: "feed name"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			wantErr: regexp.MustCompile("feed .* has no URL"),
@@ -167,9 +236,11 @@ func TestParse(t *testing.T) {
 					name: "feed name"
 					url: "feed url"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			wantErr: regexp.MustCompile("has no download_dir"),
@@ -181,9 +252,11 @@ func TestParse(t *testing.T) {
 					name: "feed name"
 					url: "feed url"
 					download_dir: "/download/dir"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			wantErr: regexp.MustCompile("has no order_regex"),
@@ -196,9 +269,11 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: ")"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			wantErr: regexp.MustCompile("error parsing order_regex"),
@@ -211,9 +286,11 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "order_regex"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			wantErr: regexp.MustCompile(`has \d+ capture groups, expected 1`),
@@ -226,12 +303,26 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order)_(regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
 			wantErr: regexp.MustCompile(`has \d+ capture groups, expected 1`),
+		},
+		{
+			desc: "no_check_spec",
+			cfg: `
+				feed {
+					name: "feed name"
+					url: "feed url"
+					download_dir: "/download/dir"
+					order_regex: "(order_regex)"
+				}
+			`,
+			wantErr: regexp.MustCompile("has no check_spec"),
 		},
 		{
 			desc: "no_check_start",
@@ -241,11 +332,13 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
-			wantErr: regexp.MustCompile("has no check_start"),
+			wantErr: regexp.MustCompile("has no start"),
 		},
 		{
 			desc: "unparseable_check_start",
@@ -255,12 +348,14 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "f49m1@30"
-					check_end: "Thu 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "f49m1@30"
+						end: "Thu 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
-			wantErr: regexp.MustCompile("error parsing check_start"),
+			wantErr: regexp.MustCompile("error parsing start"),
 		},
 		{
 			desc: "no_check_end",
@@ -270,11 +365,13 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
-			wantErr: regexp.MustCompile("has no check_end"),
+			wantErr: regexp.MustCompile("has no end"),
 		},
 		{
 			desc: "unparseable_check_end",
@@ -284,12 +381,14 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "f49m1@30"
-					check_freq_s: 60
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "f49m1@30"
+						freq_s: 60
+					}
 				}
 			`,
-			wantErr: regexp.MustCompile("error parsing check_end"),
+			wantErr: regexp.MustCompile("error parsing end"),
 		},
 		{
 			desc: "check_end_before_check_start",
@@ -299,12 +398,14 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Thu 12:00PM"
-					check_end: "Tue 12:00PM"
-					check_freq_s: 60
+					check_spec {
+						start: "Thu 12:00PM"
+						end: "Tue 12:00PM"
+						freq_s: 60
+					}
 				}
 			`,
-			wantErr: regexp.MustCompile("has check_end before check_start"),
+			wantErr: regexp.MustCompile("has end before start"),
 		},
 		{
 			desc: "no_check_freq",
@@ -314,11 +415,13 @@ func TestParse(t *testing.T) {
 					url: "feed url"
 					download_dir: "/download/dir"
 					order_regex: "(order_regex)"
-					check_start: "Tue 12:00PM"
-					check_end: "Thu 12:00PM"
+					check_spec {
+						start: "Tue 12:00PM"
+						end: "Thu 12:00PM"
+					}
 				}
 			`,
-			wantErr: regexp.MustCompile("has no check_freq_s"),
+			wantErr: regexp.MustCompile("missing or zero freq_s"),
 		},
 	} {
 		test := test

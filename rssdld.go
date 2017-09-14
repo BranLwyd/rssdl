@@ -64,7 +64,7 @@ func checkFeed(f *config.Feed, s *state.State) {
 	order := s.GetOrder(f.Name)
 	orderModified := false
 
-	ticker, err := weekly.NewTicker(f.CheckStart, f.CheckEnd, f.CheckFreq)
+	ticker, err := weekly.NewTicker(f.CheckSpecs)
 	if err != nil {
 		log.Fatalf("[%s] Could not create ticker: %v", f.Name, err)
 	}

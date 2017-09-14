@@ -20,18 +20,29 @@ func (t *Ticker) Stop() {
 	close(t.done)
 }
 
+// TickSpecification is used with NewTicker. It specifies a period each week
+// when ticks occur, and how frequently ticks occur during that period.
+type TickSpecification struct {
+	Start, End Time          // when to start and stop ticking each week
+	Frequency  time.Duration // how often to tick while ticking
+}
+
 // NewTicker returns a ticker that starts and stops ticking at the same time each week.
-func NewTicker(start, end Time, freq time.Duration) (*Ticker, error) {
-	if end.Before(start) {
-		return nil, errors.New("end is before start")
-	}
-	if freq <= 0 {
-		return nil, errors.New("freq is nonpositive")
+func NewTicker(tickSpecs []TickSpecification) (*Ticker, error) {
+	for _, ts := range tickSpecs {
+		if ts.End.Before(ts.Start) {
+			return nil, errors.New("end is before start")
+		}
+		if ts.Frequency <= 0 {
+			return nil, errors.New("freq is nonpositive")
+		}
 	}
 
 	ch := make(chan time.Time)
 	done := make(chan struct{})
-	go tick(ch, done, start, end, freq)
+	for _, ts := range tickSpecs {
+		go tick(ch, done, ts.Start, ts.End, ts.Frequency)
+	}
 	return &Ticker{
 		C:    ch,
 		done: done,
@@ -41,13 +52,13 @@ func NewTicker(start, end Time, freq time.Duration) (*Ticker, error) {
 func tick(ch chan<- time.Time, done chan struct{}, start, end Time, freq time.Duration) {
 	tck := time.Now()
 	for {
-		// Go to sleep until we reach the next tick..
+		// Go to sleep until we reach the next tick.
 		nxt := nextTick(tck, start, end, freq)
 		tmr := time.NewTimer(time.Until(nxt))
 		select {
 		case <-tmr.C:
-			// Send the tick from the timer in case it was delayed.
-			// Drop the tick if it is not ready to be received..
+			// Send the tick from the  in case it was delayed.
+			// Drop the tick if it is not ready to be received.
 			select {
 			case ch <- nxt:
 			default:

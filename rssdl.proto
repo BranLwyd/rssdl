@@ -4,6 +4,18 @@ syntax = "proto3";
 // Proto buffer definitions for rssdl.
 //
 
+// CheckSpecification specifies when & how often to check a feed.
+message CheckSpecification {
+  // Required. When to start checking each week, as a string in the format "Thu
+  // 7:30PM".
+  string start = 1;
+  // Required. When to stop checking each week, as a string in the format "Thu
+  // 7:30PM".
+  string end = 2;
+  // Required. How frequently to check the feed, in seconds per check.
+  uint32 freq_s = 3;
+}
+
 // Feed specifies all parameters of an RSS feed that is being watched.
 message Feed {
   // Required. The name of the feed.
@@ -18,15 +30,8 @@ message Feed {
   // regex, or do not capture an "order" that is lexicographically the greatest
   // seen so far, are discarded.
   string order_regex = 4;
-  // Required if not set in config. When to start checking the feed each week,
-  // as a string in the format "Thu 7:30PM".
-  string check_start = 5;
-  // Required if not set in config. When to stop checking the feed each week,
-  // as a string in the format "Thu 7:30PM".
-  string check_end = 6;
-  // Required if not set in config. How frequently to check the feed, in
-  // seconds per check.
-  uint32 check_freq_s = 7;
+  // Required if not set in config. When & how often to check the feed.
+  repeated CheckSpecification check_spec = 5;
 }
 
 // Config specifies the configuration for rssdld.
@@ -42,14 +47,8 @@ message Config {
   // Any feed items that do not match the regex, or do not capture an "order"
   // that is lexicographically the greatest seen so far, are discarded.
   string order_regex = 3;
-  // When to start checking each feed each week, as a string in the format "Thu
-  // 7:30PM".
-  string check_start = 4;
-  // When to stop checking each feed each week, as a string in the format "Thu
-  // 7:30PM".
-  string check_end = 5;
-  // How frequently to check the feed, in seconds per check.
-  uint32 check_freq_s = 6;
+  // When & how often to check the feeds.
+  repeated CheckSpecification check_spec = 4;
 }
 
 message State {
