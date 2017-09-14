@@ -162,6 +162,38 @@ func TestInWeek(t *testing.T) {
 	}
 }
 
+func TestBefore(t *testing.T) {
+	t.Parallel()
+
+	// Sorted.
+	times := []Time{
+		MustParse("Sun 5:13AM"),
+		MustParse("Mon 11:43AM"),
+		MustParse("Tue 12:00AM"),
+		MustParse("Wed 12:00PM"),
+		MustParse("Thu 7:30PM"),
+		MustParse("Fri 11:59PM"),
+		MustParse("Sat 5:17PM"),
+	}
+
+	for i, ti := range times {
+		for j, tj := range times {
+			i, ti, j, tj := i, ti, j, tj
+			t.Run(fmt.Sprintf("TestBefore-%d-%d", i, j), func(t *testing.T) {
+				t.Parallel()
+				wantIBeforeJ := i < j
+				if got := ti.Before(tj); got != wantIBeforeJ {
+					t.Errorf("%q.Before(%q) = %v, want %v", ti, tj, got, wantIBeforeJ)
+				}
+				wantJBeforeI := j < i
+				if got := tj.Before(ti); got != wantJBeforeI {
+					t.Errorf("%q.Before(%q) = %v, want %v", tj, ti, got, wantJBeforeI)
+				}
+			})
+		}
+	}
+}
+
 func TestString(t *testing.T) {
 	t.Parallel()
 	for i, want := range []string{

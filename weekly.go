@@ -138,8 +138,8 @@ func (wt Time) InWeek(tt time.Time) time.Time {
 
 func (wt Time) Before(owt Time) bool {
 	return wt.day < owt.day ||
-		wt.hour < owt.hour ||
-		wt.min < owt.min
+		(wt.day == owt.day && wt.hour < owt.hour) ||
+		(wt.day == owt.day && wt.hour == owt.hour && wt.min < owt.min)
 }
 
 func (wt Time) String() string {
