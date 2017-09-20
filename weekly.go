@@ -3,8 +3,11 @@
 package weekly
 
 import (
+	crand "crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 )
 
@@ -38,10 +41,17 @@ func NewTicker(tickSpecs []TickSpecification) (*Ticker, error) {
 		}
 	}
 
+	var buf [8]byte
+	if _, err := crand.Read(buf[:]); err != nil {
+		return nil, fmt.Errorf("could not seed RNG: %v", err)
+	}
+	seed := int64(binary.LittleEndian.Uint64(buf[:]))
+	rnd := rand.New(rand.NewSource(seed))
+
 	ch := make(chan time.Time)
 	done := make(chan struct{})
 	for _, ts := range tickSpecs {
-		go tick(ch, done, ts.Start, ts.End, ts.Frequency)
+		go tick(ch, rnd, done, ts.Start, ts.End, ts.Frequency)
 	}
 	return &Ticker{
 		C:    ch,
@@ -49,18 +59,18 @@ func NewTicker(tickSpecs []TickSpecification) (*Ticker, error) {
 	}, nil
 }
 
-func tick(ch chan<- time.Time, done chan struct{}, start, end Time, freq time.Duration) {
+func tick(ch chan<- time.Time, rnd *rand.Rand, done chan struct{}, start, end Time, freq time.Duration) {
 	tck := time.Now()
 	for {
 		// Go to sleep until we reach the next tick.
 		nxt := nextTick(tck, start, end, freq)
-		tmr := time.NewTimer(time.Until(nxt))
+		fuzzyNxt := nxt.Add(time.Duration(rnd.Float64() * float64(freq)))
+		tmr := time.NewTimer(time.Until(fuzzyNxt))
 		select {
-		case <-tmr.C:
-			// Send the tick from the  in case it was delayed.
+		case t := <-tmr.C:
 			// Drop the tick if it is not ready to be received.
 			select {
-			case ch <- nxt:
+			case ch <- t:
 			default:
 			}
 
