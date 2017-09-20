@@ -11,82 +11,97 @@ func TestNextTick(t *testing.T) {
 
 	// 2017-08-20 is a Sunday.
 	for _, test := range []struct {
-		desc       string
-		t          time.Time
-		start, end Time
-		freq       time.Duration
-		want       time.Time
+		desc string
+		t    time.Time
+		spec TickSpecification
+		want time.Time
 	}{
 		{
-			desc:  "before_interval",
-			t:     time.Date(2017, 8, 21, 15, 23, 11, 423691, time.UTC),
-			start: MustParse("Wed 5:30PM"),
-			end:   MustParse("Thu 5:30AM"),
-			freq:  time.Minute,
-			want:  time.Date(2017, 8, 23, 17, 30, 0, 0, time.UTC),
+			desc: "before_interval",
+			t:    time.Date(2017, 8, 21, 15, 23, 11, 423691, time.UTC),
+			spec: TickSpecification{
+				Start:     MustParse("Wed 5:30PM"),
+				End:       MustParse("Thu 5:30AM"),
+				Frequency: time.Minute,
+			},
+			want: time.Date(2017, 8, 23, 17, 30, 0, 0, time.UTC),
 		},
 		{
-			desc:  "at_first_tick",
-			t:     time.Date(2017, 8, 23, 17, 30, 0, 0, time.UTC),
-			start: MustParse("Wed 5:30PM"),
-			end:   MustParse("Thu 5:30AM"),
-			freq:  time.Minute,
-			want:  time.Date(2017, 8, 23, 17, 31, 0, 0, time.UTC),
+			desc: "at_first_tick",
+			t:    time.Date(2017, 8, 23, 17, 30, 0, 0, time.UTC),
+			spec: TickSpecification{
+				Start:     MustParse("Wed 5:30PM"),
+				End:       MustParse("Thu 5:30AM"),
+				Frequency: time.Minute,
+			},
+			want: time.Date(2017, 8, 23, 17, 31, 0, 0, time.UTC),
 		},
 		{
-			desc:  "after_first_tick",
-			t:     time.Date(2017, 8, 23, 17, 30, 22, 0, time.UTC),
-			start: MustParse("Wed 5:30PM"),
-			end:   MustParse("Thu 5:30AM"),
-			freq:  time.Minute,
-			want:  time.Date(2017, 8, 23, 17, 31, 0, 0, time.UTC),
+			desc: "after_first_tick",
+			t:    time.Date(2017, 8, 23, 17, 30, 22, 0, time.UTC),
+			spec: TickSpecification{
+				Start:     MustParse("Wed 5:30PM"),
+				End:       MustParse("Thu 5:30AM"),
+				Frequency: time.Minute,
+			},
+			want: time.Date(2017, 8, 23, 17, 31, 0, 0, time.UTC),
 		},
 		{
-			desc:  "at_inner_tick",
-			t:     time.Date(2017, 8, 24, 4, 22, 0, 0, time.UTC),
-			start: MustParse("Wed 5:30PM"),
-			end:   MustParse("Thu 5:30AM"),
-			freq:  time.Minute,
-			want:  time.Date(2017, 8, 24, 4, 23, 0, 0, time.UTC),
+			desc: "at_inner_tick",
+			t:    time.Date(2017, 8, 24, 4, 22, 0, 0, time.UTC),
+			spec: TickSpecification{
+				Start:     MustParse("Wed 5:30PM"),
+				End:       MustParse("Thu 5:30AM"),
+				Frequency: time.Minute,
+			},
+			want: time.Date(2017, 8, 24, 4, 23, 0, 0, time.UTC),
 		},
 		{
-			desc:  "after_inner_tick",
-			t:     time.Date(2017, 8, 24, 4, 22, 36, 0, time.UTC),
-			start: MustParse("Wed 5:30PM"),
-			end:   MustParse("Thu 5:30AM"),
-			freq:  time.Minute,
-			want:  time.Date(2017, 8, 24, 4, 23, 0, 0, time.UTC),
+			desc: "after_inner_tick",
+			t:    time.Date(2017, 8, 24, 4, 22, 36, 0, time.UTC),
+			spec: TickSpecification{
+				Start:     MustParse("Wed 5:30PM"),
+				End:       MustParse("Thu 5:30AM"),
+				Frequency: time.Minute,
+			},
+			want: time.Date(2017, 8, 24, 4, 23, 0, 0, time.UTC),
 		},
 		{
-			desc:  "at_last_tick",
-			t:     time.Date(2017, 8, 24, 5, 29, 0, 0, time.UTC),
-			start: MustParse("Wed 5:30PM"),
-			end:   MustParse("Thu 5:30AM"),
-			freq:  time.Minute,
-			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
+			desc: "at_last_tick",
+			t:    time.Date(2017, 8, 24, 5, 29, 0, 0, time.UTC),
+			spec: TickSpecification{
+				Start:     MustParse("Wed 5:30PM"),
+				End:       MustParse("Thu 5:30AM"),
+				Frequency: time.Minute,
+			},
+			want: time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
 		},
 		{
-			desc:  "after_last_tick",
-			t:     time.Date(2017, 8, 24, 5, 29, 47, 0, time.UTC),
-			start: MustParse("Wed 5:30PM"),
-			end:   MustParse("Thu 5:30AM"),
-			freq:  time.Minute,
-			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
+			desc: "after_last_tick",
+			t:    time.Date(2017, 8, 24, 5, 29, 47, 0, time.UTC),
+			spec: TickSpecification{
+				Start:     MustParse("Wed 5:30PM"),
+				End:       MustParse("Thu 5:30AM"),
+				Frequency: time.Minute,
+			},
+			want: time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
 		},
 		{
-			desc:  "after_interval",
-			t:     time.Date(2017, 8, 25, 13, 42, 26, 0, time.UTC),
-			start: MustParse("Wed 5:30PM"),
-			end:   MustParse("Thu 5:30AM"),
-			freq:  time.Minute,
-			want:  time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
+			desc: "after_interval",
+			t:    time.Date(2017, 8, 25, 13, 42, 26, 0, time.UTC),
+			spec: TickSpecification{
+				Start:     MustParse("Wed 5:30PM"),
+				End:       MustParse("Thu 5:30AM"),
+				Frequency: time.Minute,
+			},
+			want: time.Date(2017, 8, 30, 17, 30, 0, 0, time.UTC),
 		},
 	} {
 		test := test
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
-			if got := nextTick(test.t, test.start, test.end, test.freq); got != test.want {
-				t.Errorf("nextTick(%v, %v, %v, %v) = %v, want %v", test.t, test.start, test.end, test.freq, got, test.want)
+			if got := nextTick(test.t, test.spec); got != test.want {
+				t.Errorf("nextTick(%v, %+v) = %v, want %v", test.t, test.spec, got, test.want)
 			}
 		})
 	}

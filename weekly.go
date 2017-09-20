@@ -3,11 +3,13 @@
 package weekly
 
 import (
+	"container/heap"
 	crand "crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
 	"time"
 )
 
@@ -30,8 +32,32 @@ type TickSpecification struct {
 	Frequency  time.Duration // how often to tick while ticking
 }
 
+type ticker struct {
+	spec TickSpecification
+	nxt  time.Time
+}
+
+// tickerHeap implements heap.Interface.
+type tickerHeap []*ticker
+
+func (h tickerHeap) Len() int            { return len(h) }
+func (h tickerHeap) Less(i, j int) bool  { return h[i].nxt.Before(h[j].nxt) }
+func (h tickerHeap) Swap(i, j int)       { h[i], h[j] = h[j], h[i] }
+func (h *tickerHeap) Push(x interface{}) { *h = append(*h, x.(*ticker)) }
+func (h *tickerHeap) Pop() interface{} {
+	var val *ticker
+	*h, val = (*h)[:len(*h)-1], (*h)[len(*h)-1]
+	return val
+}
+
 // NewTicker returns a ticker that starts and stops ticking at the same time each week.
 func NewTicker(tickSpecs []TickSpecification) (*Ticker, error) {
+	// Create heap of tickers based on tick specifications.
+	var tickers tickerHeap
+	now := time.Now()
+	if len(tickSpecs) == 0 {
+		return nil, errors.New("no tick specifications")
+	}
 	for _, ts := range tickSpecs {
 		if ts.End.Before(ts.Start) {
 			return nil, errors.New("end is before start")
@@ -39,8 +65,20 @@ func NewTicker(tickSpecs []TickSpecification) (*Ticker, error) {
 		if ts.Frequency <= 0 {
 			return nil, errors.New("freq is nonpositive")
 		}
+		tickers = append(tickers, &ticker{
+			spec: ts,
+			nxt:  nextTick(now, ts),
+		})
 	}
+	sort.Sort(tickers)
+	for i := 1; i < len(tickers); i++ {
+		if tickers[i].spec.Start.Before(tickers[i-1].spec.End) {
+			return nil, errors.New("tick specifications overlap")
+		}
+	}
+	heap.Init(&tickers)
 
+	// Set up RNG.
 	var buf [8]byte
 	if _, err := crand.Read(buf[:]); err != nil {
 		return nil, fmt.Errorf("could not seed RNG: %v", err)
@@ -48,29 +86,27 @@ func NewTicker(tickSpecs []TickSpecification) (*Ticker, error) {
 	seed := int64(binary.LittleEndian.Uint64(buf[:]))
 	rnd := rand.New(rand.NewSource(seed))
 
+	// Create the last few variables, start ticking, and return channel to user.
 	ch := make(chan time.Time)
 	done := make(chan struct{})
-	for _, ts := range tickSpecs {
-		go tick(ch, rnd, done, ts.Start, ts.End, ts.Frequency)
-	}
+	go tick(ch, done, rnd, tickers)
 	return &Ticker{
 		C:    ch,
 		done: done,
 	}, nil
 }
 
-func tick(ch chan<- time.Time, rnd *rand.Rand, done chan struct{}, start, end Time, freq time.Duration) {
-	tck := time.Now()
+func tick(ch chan<- time.Time, done chan struct{}, rnd *rand.Rand, tickers tickerHeap) {
 	for {
 		// Go to sleep until we reach the next tick.
-		nxt := nextTick(tck, start, end, freq)
-		fuzzyNxt := nxt.Add(time.Duration(rnd.Float64() * float64(freq)))
-		tmr := time.NewTimer(time.Until(fuzzyNxt))
+		ticker := tickers[0]
+		nxt := ticker.nxt.Add(time.Duration(rnd.Float64() * float64(ticker.spec.Frequency)))
+		tmr := time.NewTimer(time.Until(nxt))
 		select {
-		case t := <-tmr.C:
+		case <-tmr.C:
 			// Drop the tick if it is not ready to be received.
 			select {
-			case ch <- t:
+			case ch <- nxt:
 			default:
 			}
 
@@ -80,12 +116,14 @@ func tick(ch chan<- time.Time, rnd *rand.Rand, done chan struct{}, start, end Ti
 			}
 			return
 		}
-		tck = nxt
+
+		ticker.nxt = nextTick(ticker.nxt, ticker.spec)
+		heap.Fix(&tickers, 0)
 	}
 }
 
-func nextTick(tck time.Time, start, end Time, freq time.Duration) (nxt time.Time) {
-	s, e := start.InWeek(tck), end.InWeek(tck)
+func nextTick(tck time.Time, spec TickSpecification) time.Time {
+	s, e := spec.Start.InWeek(tck), spec.End.InWeek(tck)
 	switch {
 	case tck.Before(s):
 		// We haven't started ticking yet this week.
@@ -93,7 +131,7 @@ func nextTick(tck time.Time, start, end Time, freq time.Duration) (nxt time.Time
 
 	case tck.Before(e):
 		// We are currently ticking. Figure out the next tick from when we are.
-		nxt := s.Add(freq * (1 + (tck.Sub(s) / freq)))
+		nxt := s.Add(spec.Frequency * (1 + (tck.Sub(s) / spec.Frequency)))
 		if nxt.Before(e) {
 			return nxt
 		}
