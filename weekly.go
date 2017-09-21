@@ -98,9 +98,16 @@ func NewTicker(tickSpecs []TickSpecification) (*Ticker, error) {
 
 func tick(ch chan<- time.Time, done chan struct{}, rnd *rand.Rand, tickers tickerHeap) {
 	for {
-		// Go to sleep until we reach the next tick.
+		// Compute the next tick; randomize the actual tick time.
 		ticker := tickers[0]
-		nxt := ticker.nxt.Add(time.Duration(rnd.Float64() * float64(ticker.spec.Frequency)))
+		nxt := ticker.nxt
+		interval := ticker.spec.End.InWeek(nxt).Sub(nxt)
+		if ticker.spec.Frequency < interval {
+			interval = ticker.spec.Frequency
+		}
+		nxt = nxt.Add(time.Duration(float64(interval) * rnd.Float64()))
+
+		// Go to sleep until the next tick occurs.
 		tmr := time.NewTimer(time.Until(nxt))
 		select {
 		case <-tmr.C:
@@ -117,6 +124,7 @@ func tick(ch chan<- time.Time, done chan struct{}, rnd *rand.Rand, tickers ticke
 			return
 		}
 
+		// Update the ticker & figure out which ticker will tick next.
 		ticker.nxt = nextTick(ticker.nxt, ticker.spec)
 		heap.Fix(&tickers, 0)
 	}
