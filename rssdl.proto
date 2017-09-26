@@ -32,6 +32,9 @@ message Feed {
   string order_regex = 4;
   // Required if not set in config. When & how often to check the feed.
   repeated CheckSpecification check_spec = 5;
+  // A command to run when various events occur, such as finding a new item
+  // or encountering an error while downloading an item.
+  string alert_command = 6;
 }
 
 // Config specifies the configuration for rssdld.
@@ -49,6 +52,9 @@ message Config {
   string order_regex = 3;
   // When & how often to check the feeds.
   repeated CheckSpecification check_spec = 4;
+  // A command to run when various events occur, such as finding a new item
+  // or encountering an error while downloading an item.
+  string alert_command = 5;
 }
 
 message State {

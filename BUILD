@@ -10,6 +10,7 @@ go_binary(
     name = "rssdld",
     srcs = ["rssdld.go"],
     deps = [
+        ":alert",
         ":config",
         ":state",
         ":weekly",
@@ -21,9 +22,15 @@ go_binary(
 ## Libraries
 ##
 go_library(
+    name = "alert",
+    srcs = ["alert.go"],
+)
+
+go_library(
     name = "config",
     srcs = ["config.go"],
     deps = [
+        ":alert",
         ":rssdl_proto",
         ":weekly",
         "@com_github_golang_protobuf//proto:go_default_library",

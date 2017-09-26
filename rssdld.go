@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -15,7 +16,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/BranLwyd/rssdl/alert"
 	"github.com/BranLwyd/rssdl/config"
 	"github.com/BranLwyd/rssdl/state"
 	"github.com/BranLwyd/rssdl/weekly"
@@ -75,6 +78,7 @@ CHECK_LOOP:
 		log.Printf("[%s] Checking", f.Name)
 		feed, err := parser.ParseURL(f.URL)
 		if err != nil {
+			sendAlert(f.Alerter, alert.ERROR, fmt.Sprintf("[%s] Could not parse feed", f.Name))
 			fmt.Printf("[%s] Could not parse feed: %v", f.Name, err)
 			continue
 		}
@@ -83,6 +87,7 @@ CHECK_LOOP:
 		// Order the feed's items, oldest first.
 		for _, itm := range itms {
 			if itm.PublishedParsed == nil {
+				sendAlert(f.Alerter, alert.ERROR, fmt.Sprintf("[%s] Item with no publish time", f.Name))
 				fmt.Printf("[%s] %q has no published time, or time could not be parsed", f.Name, itm.Title)
 				continue CHECK_LOOP
 			}
@@ -103,8 +108,11 @@ CHECK_LOOP:
 			// Download.
 			log.Printf("[%s] Found %s", f.Name, itm.Title)
 			if err := download(itm.Link, f.DownloadDir); err != nil {
+				sendAlert(f.Alerter, alert.ERROR, fmt.Sprintf("[%s] Could not download item", f.Name))
 				fmt.Printf("[%s] Could not download %q: %v", f.Name, itm.Title, err)
 				break
+			} else {
+				sendAlert(f.Alerter, alert.NEW_ITEM, fmt.Sprintf("[%s] Got new item: %s", f.Name, o))
 			}
 			order, orderModified = o, true
 		}
@@ -112,6 +120,7 @@ CHECK_LOOP:
 			if err := s.SetOrder(f.Name, order); err != nil {
 				// TODO: if writing fails, retry writes independently of checks
 				// (otherwise, pending writes may stay in memory for a week!)
+				sendAlert(f.Alerter, alert.ERROR, fmt.Sprintf("[%s] Error updating order", f.Name))
 				fmt.Printf("[%s] Could not update order: %v", f.Name, err)
 			} else {
 				orderModified = false
@@ -164,4 +173,18 @@ func download(dlURL, dir string) error {
 		return fmt.Errorf("could not rename file: %v", err)
 	}
 	return nil
+}
+
+func sendAlert(a alert.Alerter, code alert.Code, details string) {
+	const alertTimeout = time.Minute
+
+	if a != nil {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), alertTimeout)
+			defer cancel()
+			if err := a.Alert(ctx, code, details); err != nil {
+				log.Printf("Error while alerting ([%s] %s): %v", code, details, err)
+			}
+		}()
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/BranLwyd/rssdl/alert"
 	"github.com/BranLwyd/rssdl/weekly"
 	"github.com/golang/protobuf/proto"
 
@@ -18,6 +19,7 @@ type Feed struct {
 	DownloadDir string
 	OrderRegexp *regexp.Regexp
 	CheckSpecs  []weekly.TickSpecification
+	Alerter     alert.Alerter
 }
 
 func Parse(cfg string) ([]*Feed, error) {
@@ -59,6 +61,11 @@ func Parse(cfg string) ([]*Feed, error) {
 		}
 		if re.NumSubexp() != 1 {
 			return nil, fmt.Errorf("order regex for feed %q has %d capture groups, expected 1", f.Name, re.NumSubexp())
+		}
+
+		var a alert.Alerter
+		if ac := defaultString(f.AlertCommand, c.AlertCommand); ac != "" {
+			a = alert.NewCommand(ac)
 		}
 
 		cs := f.CheckSpec
@@ -107,6 +114,7 @@ func Parse(cfg string) ([]*Feed, error) {
 			DownloadDir: dd,
 			OrderRegexp: re,
 			CheckSpecs:  ts,
+			Alerter:     a,
 		})
 	}
 	return feeds, nil
